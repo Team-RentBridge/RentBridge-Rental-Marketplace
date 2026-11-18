@@ -1,0 +1,33 @@
+# Node modules (frontend)
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+logs
+*.log
+
+# Build folders
+build/
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Maven / Spring Boot
+springboot-backend/target/
+springboot-backend/src/main/resources/application.properties
+springboot-backend/src/main/resources/application-local.properties
+*.class
+*.jar
+*.war
+
+# Maven wrapper
+!springboot-backend/.mvn/wrapper/maven-wrapper.jar
