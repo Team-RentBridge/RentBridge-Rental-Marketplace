@@ -69,6 +69,33 @@ function Dashboard() {
     }
   };
 
+  const handleOwnerDecision = async (bookingId, decision) => {
+    try {
+      await API.post(`/bookings/${bookingId}/${decision}`);
+      setTransactions((previous) => previous.map((transaction) =>
+        transaction.id === bookingId
+          ? { ...transaction, status: decision === "approve" ? "confirmed" : "declined" }
+          : transaction
+      ));
+      if (decision === "decline") {
+        alert("Booking declined. The renter's payment will be refunded automatically.");
+      }
+    } catch (error) {
+      alert(error.response?.data?.error || `Could not ${decision} this booking.`);
+    }
+  };
+
+  const cancelBooking = async (bookingId) => {
+    try {
+      await API.post(`/bookings/${bookingId}/cancel`);
+      setTransactions((previous) => previous.map((transaction) =>
+        transaction.id === bookingId ? { ...transaction, status: "cancelled" } : transaction
+      ));
+    } catch (error) {
+      alert(error.response?.data?.error || "Could not cancel this booking.");
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
@@ -180,7 +207,7 @@ function Dashboard() {
                     </td>
                     <td className="px-10 py-8">
                       <div className="text-sm font-bold text-white/60">
-                        {new Date(t.start_date).toLocaleDateString()}
+                        {new Date(t.start_date).toLocaleDateString()} – {new Date(t.end_date).toLocaleDateString()}
                       </div>
                     </td>
                     <td className="px-10 py-8 font-black text-white">₹{t.total_price}</td>
@@ -189,7 +216,12 @@ function Dashboard() {
                         t.status === 'completed' || t.is_for_sale ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 
                         'bg-primary-500/20 text-primary-400 border border-primary-500/30'
                       }`}>
-                        {t.is_for_sale ? (t.borrower_name ? 'Sold' : 'Purchased') : t.status}
+                        {t.is_for_sale ? (t.is_owner ? 'Sold' : 'Purchased') : t.status.replaceAll("_", " ")}
+                        {!t.is_owner && t.cancellation_deadline && ["confirmed", "pending_approval"].includes(t.status) && (
+                          <div className="mt-1 text-[9px] normal-case tracking-normal text-white/30">
+                            Free cancellation until {new Date(t.cancellation_deadline).toLocaleString()}
+                          </div>
+                        )}
                       </span>
                     </td>
                     <td className="px-10 py-8 text-right">
@@ -197,8 +229,24 @@ function Dashboard() {
                         <span className="text-xs font-bold text-white/20 uppercase tracking-widest">N/A</span>
                       ) : t.status === 'completed' ? (
                         <span className="text-xs font-bold text-white/20 uppercase tracking-widest">Returned</span>
-                      ) : t.borrower_name ? (
+                      ) : t.is_owner && t.status === "pending_approval" ? (
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleOwnerDecision(t.id, "approve")}
+                            className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-500"
+                          >Approve</button>
+                          <button
+                            onClick={() => handleOwnerDecision(t.id, "decline")}
+                            className="rounded-lg bg-red-500/15 px-3 py-2 text-xs font-bold text-red-300 hover:bg-red-500/25"
+                          >Decline</button>
+                        </div>
+                      ) : t.is_owner ? (
                         <span className="text-xs font-bold text-white/20 uppercase tracking-widest">Lent Out</span>
+                      ) : ["pending_approval", "confirmed", "payment_pending"].includes(t.status) ? (
+                        <button
+                          onClick={() => cancelBooking(t.id)}
+                          className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-xs transition-all"
+                        >Cancel</button>
                       ) : (
                         <button 
                           onClick={() => handleReturn(t.id)}

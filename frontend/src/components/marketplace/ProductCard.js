@@ -49,6 +49,12 @@ function ProductCard({ product }) {
           {product.description || "Premium equipment maintained to the highest standards."}
         </p>
 
+        {product.owner_name && (
+          <p className="mb-5 text-xs font-semibold text-white/50">
+            Listed by <span className="text-white/80">{product.owner_name}</span>
+          </p>
+        )}
+
         <div className="flex items-center justify-between mt-auto">
           <div>
             {product.is_for_sale ? (

@@ -21,6 +21,7 @@ const AddEquipmentForm = ({ onSuccess }) => {
         available_from: '',
         available_to: '',
         listing_type: 'rent',
+        instant_booking: false,
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,6 +48,8 @@ const AddEquipmentForm = ({ onSuccess }) => {
             await API.post('/equipment/add', {
                 ...formData,
                 is_for_sale: isForSale,
+                available_from: formData.available_from || null,
+                available_to: formData.available_to || null,
                 price_per_day: isForSale ? null : parseFloat(formData.price_per_day),
                 penalty_per_day: isForSale ? 0 : (parseFloat(formData.penalty_per_day) || 0),
                 buy_price: isForSale ? parseFloat(formData.buy_price) : null,
@@ -197,6 +200,23 @@ const AddEquipmentForm = ({ onSuccess }) => {
                                     className={inputClasses}
                                 />
                             </div>
+                        )}
+
+                        {formData.listing_type === 'rent' && (
+                            <label className="flex items-start gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.instant_booking}
+                                    onChange={(e) => setFormData({ ...formData, instant_booking: e.target.checked })}
+                                    className="mt-1 h-5 w-5 accent-primary-500"
+                                />
+                                <span>
+                                    <span className="block font-bold text-white">Enable instant booking</span>
+                                    <span className="mt-1 block text-sm text-white/40">
+                                        When off, each paid reservation needs your approval within 24 hours.
+                                    </span>
+                                </span>
+                            </label>
                         )}
                     </div>
 

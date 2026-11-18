@@ -48,6 +48,9 @@ function Cart() {
   const handleCheckout = async () => {
     if (!user) return navigate("/login");
     if (cartItems.length === 0) return alert("Your cart is empty!");
+    if (cartItems.some((item) => !item.is_for_sale)) {
+      return alert("Rental equipment must be reserved from its availability calendar. Remove rental items from your cart to continue.");
+    }
     const razorpayKeyId = process.env.REACT_APP_RAZORPAY_KEY_ID;
     if (!razorpayKeyId) return alert("Payments are not configured. Please contact support.");
 

@@ -19,7 +19,8 @@ public class AdminService {
         Integer totalEquipment = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM equipment", Integer.class);
         Integer totalBookings = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM bookings", Integer.class);
         Integer activeBookings = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM bookings WHERE status = 'active'", Integer.class);
+            "SELECT COUNT(*) FROM bookings WHERE status IN ('active', 'confirmed', 'pending_approval')",
+            Integer.class);
 
         Object totalRevenueObj = jdbcTemplate.queryForObject(
             "SELECT COALESCE(SUM(total_price), 0) FROM bookings WHERE status = 'completed'", Object.class);

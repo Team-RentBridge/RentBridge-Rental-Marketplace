@@ -1,6 +1,7 @@
 package com.rentbridge.controller;
 
 import com.rentbridge.dto.AddEquipmentRequest;
+import com.rentbridge.dto.CreateEquipmentBlockRequest;
 import com.rentbridge.model.UserContext;
 import com.rentbridge.service.EquipmentService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/equipment")
@@ -37,6 +39,46 @@ public class EquipmentController {
             return ResponseEntity.ok(equipment);
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{id}/availability")
+    public ResponseEntity<?> getAvailability(@PathVariable Long id,
+            @RequestParam LocalDate from, @RequestParam LocalDate to) {
+        try {
+            return ResponseEntity.ok(equipmentService.getAvailability(id, from, to));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/availability-blocks")
+    public ResponseEntity<?> addAvailabilityBlock(@PathVariable Long id,
+            @RequestBody CreateEquipmentBlockRequest request, HttpServletRequest httpRequest) {
+        UserContext userContext = (UserContext) httpRequest.getAttribute("userContext");
+        if (userContext == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+        try {
+            return ResponseEntity.ok(
+                equipmentService.addAvailabilityBlock(id, request, userContext.getUserId()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{id}/availability-blocks/{blockId}")
+    public ResponseEntity<?> removeAvailabilityBlock(@PathVariable Long id, @PathVariable Long blockId,
+            HttpServletRequest httpRequest) {
+        UserContext userContext = (UserContext) httpRequest.getAttribute("userContext");
+        if (userContext == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+        try {
+            equipmentService.removeAvailabilityBlock(id, blockId, userContext.getUserId());
+            return ResponseEntity.ok(Map.of("message", "Blocked dates removed"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 

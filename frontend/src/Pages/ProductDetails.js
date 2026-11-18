@@ -8,6 +8,7 @@ import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/footer";
 import ReviewForm from "../components/dashboard/ReviewForm";
 import ReviewsDisplay from "../components/dashboard/ReviewsDisplay";
+import AvailabilityCalendar from "../components/marketplace/AvailabilityCalendar";
 
 function ProductDetails() {
   const { id } = useParams();
@@ -21,6 +22,7 @@ function ProductDetails() {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const isOwner = Boolean(user && product && Number(user.id || user.userId) === Number(product.owner_id));
 
   useEffect(() => {
     API.get(`/equipment/${id}`)
@@ -42,7 +44,7 @@ function ProductDetails() {
 
   const handlePayment = async () => {
     if (!user) return navigate("/login");
-    if (!product.is_for_sale && (!startDate || !endDate)) return alert("Please select dates");
+    if (!product.is_for_sale) return handleRentalBooking();
     const razorpayKeyId = process.env.REACT_APP_RAZORPAY_KEY_ID;
     if (!razorpayKeyId) return alert("Payments are not configured. Please contact support.");
 
@@ -112,6 +114,91 @@ function ProductDetails() {
     }
   };
 
+  const handleRentalBooking = async () => {
+    if (!user) return navigate("/login");
+    if (isOwner) return alert("You cannot book your own listing.");
+    if (!startDate || !endDate) return alert("Select a pickup and return date in the calendar.");
+
+    const razorpayKeyId = process.env.REACT_APP_RAZORPAY_KEY_ID;
+    if (!razorpayKeyId) return alert("Payments are not configured. Please contact support.");
+
+    setBookingLoading(true);
+    let holdId;
+    try {
+      const { data: hold } = await API.post("/bookings/hold", {
+        equipment_id: Number(id),
+        start_date: startDate,
+        end_date: endDate,
+        quantity,
+      });
+      holdId = hold.id;
+
+      const { data: order } = await API.post("/payments/create-order", {
+        booking_id: hold.id,
+        currency: "INR",
+      });
+      let paymentSubmitted = false;
+      let holdReleaseRequested = false;
+      const releaseHold = async () => {
+        if (holdReleaseRequested || paymentSubmitted) return;
+        holdReleaseRequested = true;
+        try {
+          await API.post(`/bookings/${hold.id}/cancel`);
+        } catch (error) {
+          console.error("Could not release booking hold:", error);
+        }
+      };
+      const options = {
+        key: razorpayKeyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: "RentBridge",
+        description: `Rental reservation for ${product.title}`,
+        order_id: order.id,
+        handler: async (response) => {
+          paymentSubmitted = true;
+          try {
+            const { data } = await API.post("/payments/verify-payment", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              booking_id: hold.id,
+            });
+            const status = data.booking.status === "confirmed"
+              ? "Instant booking confirmed."
+              : data.booking.status === "expired"
+                ? "The hold expired before payment completed. An automatic refund has been started."
+                : "Payment received. The owner has 24 hours to approve your request.";
+            alert(`${status} Pick up ${startDate} at 9:00 AM; return ${endDate} by 5:00 PM.`);
+            navigate("/dashboard");
+          } catch (error) {
+            console.error("Booking payment verification failed:", error);
+            alert(error.response?.data?.error || "Payment could not be attached to the booking. Please contact support.");
+          }
+        },
+        modal: {
+          ondismiss: releaseHold,
+        },
+        prefill: { name: user.name, email: user.email },
+        theme: { color: "#8b5cf6" },
+      };
+      const razorpay = new window.Razorpay(options);
+      razorpay.on("payment.failed", releaseHold);
+      razorpay.open();
+    } catch (error) {
+      if (holdId) {
+        try {
+          await API.post(`/bookings/${holdId}/cancel`);
+        } catch (releaseError) {
+          console.error("Could not release booking hold:", releaseError);
+        }
+      }
+      alert(error.response?.data?.error || "Could not start this reservation. Please try again.");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
   const handleBooking = async () => {
     try {
       // For purchases, we use today's date to satisfy the bookings table NOT NULL constraint
@@ -125,7 +212,8 @@ function ProductDetails() {
       alert(product.is_for_sale ? "Purchase Successful! Check your Dashboard." : "Booking Successful! Check your Dashboard.");
       navigate("/dashboard");
     } catch (err) {
-      alert(err.response?.data?.message || (product.is_for_sale ? "Purchase failed" : "Booking failed"));
+      alert(err.response?.data?.error || err.response?.data?.message ||
+        (product.is_for_sale ? "Purchase failed" : "Booking failed"));
     }
   };
 
@@ -210,6 +298,11 @@ function ProductDetails() {
               <p className="text-xl text-white/40 leading-relaxed font-medium italic">
                 {product.description || "Premium equipment maintained to the highest industry standards. Perfect for high-demand projects."}
               </p>
+              {product.owner_name && (
+                <p className="mt-4 text-sm font-semibold text-white/50">
+                  Listed by <span className="text-white/80">{product.owner_name}</span>
+                </p>
+              )}
 
               {/* Owner Rating */}
               {ownerRating && (
@@ -273,34 +366,24 @@ function ProductDetails() {
               </div>
 
               {!product.is_for_sale && (
-                <div className="grid sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-white/40 ml-1 uppercase tracking-wider">Start Date</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all appearance-none"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-white/40 ml-1 uppercase tracking-wider">End Date</label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all appearance-none"
-                    />
-                  </div>
-                </div>
+                <AvailabilityCalendar
+                  equipmentId={id}
+                  startDate={startDate}
+                  endDate={endDate}
+                  onChange={(start, end) => {
+                    setStartDate(start);
+                    setEndDate(end);
+                  }}
+                  isOwner={isOwner}
+                />
               )}
               
               <div className="space-y-2 mt-4">
-                  <label className="text-xs font-bold text-white/40 ml-1 uppercase tracking-wider">Quantity (Available: {product.quantity})</label>
+                  <label className="text-xs font-bold text-white/40 ml-1 uppercase tracking-wider">Quantity (Total units: {product.total_quantity || product.quantity})</label>
                   <input
                     type="number"
                     min="1"
-                    max={product.quantity}
+                    max={product.is_for_sale ? product.quantity : (product.total_quantity || product.quantity)}
                     value={quantity}
                     onChange={(e) => setQuantity(Number(e.target.value))}
                     className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all appearance-none"
@@ -308,6 +391,11 @@ function ProductDetails() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                {isOwner ? (
+                  <p className="flex-1 rounded-2xl border border-white/10 bg-white/5 py-5 text-center text-sm font-bold text-white/40">
+                    You own this listing. Manage blocked dates above.
+                  </p>
+                ) : (
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -323,12 +411,13 @@ function ProductDetails() {
                   ) : (
                     <>
                       <CreditCard className="w-6 h-6" />
-                      {product.is_for_sale ? "Buy Now" : "Pay & Book"}
+                      {product.is_for_sale ? "Buy Now" : "Reserve & Pay"}
                     </>
                   )}
                 </motion.button>
+                )}
 
-                <motion.button
+                {product.is_for_sale && <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={addToCart}
@@ -336,8 +425,16 @@ function ProductDetails() {
                 >
                   <ShoppingCart className="w-6 h-6" />
                   Add to Cart
-                </motion.button>
+                </motion.button>}
               </div>
+              {!product.is_for_sale && !isOwner && (
+                <p className="text-center text-xs text-white/40">
+                  {product.instant_booking
+                    ? "Instant booking: payment confirms the reservation."
+                    : "Owner approval required. Unanswered requests are declined and refunded after 24 hours."}
+                  {" "}Your dates are held for 15 minutes while you pay.
+                </p>
+              )}
 
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 rounded-full blur-3xl -z-10" />
             </div>

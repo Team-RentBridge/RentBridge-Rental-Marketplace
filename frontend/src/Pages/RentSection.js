@@ -60,6 +60,15 @@ function RentSection() {
     }
   };
 
+  const visibleTransactions = transactions.filter((item) => {
+    const isOwner = item.is_owner === true;
+    if (activeTab === "rentedByMe") return !item.is_for_sale && !isOwner;
+    if (activeTab === "rentedFromMe") return !item.is_for_sale && isOwner;
+    if (activeTab === "purchased") return item.is_for_sale && !isOwner;
+    if (activeTab === "sold") return item.is_for_sale && isOwner;
+    return true;
+  });
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
@@ -107,13 +116,7 @@ function RentSection() {
 
         <div className="space-y-8 mb-20">
           <AnimatePresence mode="popLayout">
-            {transactions?.filter(item => {
-              if (activeTab === "rentedByMe") return !item.is_for_sale && !item.borrower_name;
-              if (activeTab === "rentedFromMe") return !item.is_for_sale && item.borrower_name;
-              if (activeTab === "purchased") return item.is_for_sale && !item.borrower_name;
-              if (activeTab === "sold") return item.is_for_sale && item.borrower_name;
-              return true;
-            }).map((item, idx) => (
+            {visibleTransactions.map((item, idx) => (
               <motion.div
                 key={item.id || idx}
                 layout
@@ -160,11 +163,11 @@ function RentSection() {
                       'bg-primary-500/20 text-primary-400 border-primary-500/30'
                     }`}>
                       {item.status === 'completed' || item.is_for_sale ? <CheckCircle2 className="w-3 h-3" /> : <Zap className="w-3 h-3 animate-pulse" />}
-                      {item.is_for_sale ? (item.borrower_name ? 'Sold' : 'Purchased') : item.status}
+                      {item.is_for_sale ? (item.is_owner ? 'Sold' : 'Purchased') : item.status}
                     </div>
                   </div>
 
-                  {!item.is_for_sale && item.status !== 'completed' && !item.borrower_name && (
+                  {!item.is_for_sale && item.status !== 'completed' && !item.is_owner && (
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -180,13 +183,7 @@ function RentSection() {
             ))}
           </AnimatePresence>
 
-          {(!transactions || transactions.filter(item => {
-              if (activeTab === "rentedByMe") return !item.is_for_sale && !item.borrower_name;
-              if (activeTab === "rentedFromMe") return !item.is_for_sale && item.borrower_name;
-              if (activeTab === "purchased") return item.is_for_sale && !item.borrower_name;
-              if (activeTab === "sold") return item.is_for_sale && item.borrower_name;
-              return true;
-            }).length === 0) && (
+          {visibleTransactions.length === 0 && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

@@ -41,7 +41,8 @@ public class UserService {
         double totalRevenue = totalRevenueObj != null ? ((Number) totalRevenueObj).doubleValue() : 0.0;
 
         Integer activeRentals = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM bookings WHERE user_id = ? AND status = 'active'",
+            "SELECT COUNT(*) FROM bookings WHERE user_id = ? " +
+            "AND status IN ('active', 'confirmed', 'pending_approval')",
             Integer.class, userId);
 
         // penalties table: booking_id, late_days, penalty_amount (no renter_id)
@@ -76,7 +77,8 @@ public class UserService {
 
     public Map<String, Object> getUserTransactions(Long userId) {
         List<Map<String, Object>> borrowed = jdbcTemplate.queryForList(
-            "SELECT b.*, e.title AS equipment_title, e.image_url, e.price_per_day, " +
+            "SELECT b.*, e.title AS title, e.category, e.title AS equipment_title, " +
+            "e.image_url, e.price_per_day, e.is_for_sale, FALSE AS is_owner, " +
             "u.name AS owner_name " +
             "FROM bookings b " +
             "JOIN equipment e ON b.equipment_id = e.id " +
@@ -85,7 +87,8 @@ public class UserService {
             userId);
 
         List<Map<String, Object>> lent = jdbcTemplate.queryForList(
-            "SELECT b.*, e.title AS equipment_title, e.image_url, e.price_per_day, " +
+            "SELECT b.*, e.title AS title, e.category, e.title AS equipment_title, " +
+            "e.image_url, e.price_per_day, e.is_for_sale, TRUE AS is_owner, " +
             "u.name AS renter_name " +
             "FROM bookings b " +
             "JOIN equipment e ON b.equipment_id = e.id " +

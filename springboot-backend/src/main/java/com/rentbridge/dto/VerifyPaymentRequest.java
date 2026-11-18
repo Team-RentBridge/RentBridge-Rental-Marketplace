@@ -12,6 +12,9 @@ public class VerifyPaymentRequest {
     @JsonProperty("razorpay_signature")
     private String razorpaySignature;
 
+    @JsonProperty("booking_id")
+    private Long bookingId;
+
     public String getRazorpayOrderId() { return razorpayOrderId; }
     public void setRazorpayOrderId(String razorpayOrderId) { this.razorpayOrderId = razorpayOrderId; }
 
@@ -20,4 +23,7 @@ public class VerifyPaymentRequest {
 
     public String getRazorpaySignature() { return razorpaySignature; }
     public void setRazorpaySignature(String razorpaySignature) { this.razorpaySignature = razorpaySignature; }
+
+    public Long getBookingId() { return bookingId; }
+    public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
 }

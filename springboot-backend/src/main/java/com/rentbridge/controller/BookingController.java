@@ -19,9 +19,24 @@ public class BookingController {
     @Autowired
     private BookingService bookingService;
 
+    @PostMapping("/hold")
+    public ResponseEntity<?> createHold(@RequestBody CreateBookingRequest request,
+            HttpServletRequest httpRequest) {
+        UserContext userContext = (UserContext) httpRequest.getAttribute("userContext");
+        if (userContext == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+        try {
+            return ResponseEntity.ok(
+                bookingService.createRentalHold(request, userContext.getUserId()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/create")
     public ResponseEntity<?> createBooking(@RequestBody CreateBookingRequest request,
-                                            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest) {
         UserContext userContext = (UserContext) httpRequest.getAttribute("userContext");
         if (userContext == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
@@ -50,7 +65,7 @@ public class BookingController {
 
     @PostMapping("/return")
     public ResponseEntity<?> returnBooking(@RequestBody ReturnBookingRequest request,
-                                            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest) {
         UserContext userContext = (UserContext) httpRequest.getAttribute("userContext");
         if (userContext == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
@@ -58,6 +73,51 @@ public class BookingController {
         try {
             Map<String, Object> booking = bookingService.returnBooking(request, userContext.getUserId());
             return ResponseEntity.ok(booking);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{bookingId}/approve")
+    public ResponseEntity<?> approveBooking(@PathVariable Long bookingId,
+            HttpServletRequest httpRequest) {
+        UserContext userContext = (UserContext) httpRequest.getAttribute("userContext");
+        if (userContext == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+        try {
+            return ResponseEntity.ok(
+                bookingService.approveBooking(bookingId, userContext.getUserId()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{bookingId}/decline")
+    public ResponseEntity<?> declineBooking(@PathVariable Long bookingId,
+            HttpServletRequest httpRequest) {
+        UserContext userContext = (UserContext) httpRequest.getAttribute("userContext");
+        if (userContext == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+        try {
+            return ResponseEntity.ok(
+                bookingService.declineBooking(bookingId, userContext.getUserId()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{bookingId}/cancel")
+    public ResponseEntity<?> cancelBooking(@PathVariable Long bookingId,
+            HttpServletRequest httpRequest) {
+        UserContext userContext = (UserContext) httpRequest.getAttribute("userContext");
+        if (userContext == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+        try {
+            return ResponseEntity.ok(
+                bookingService.cancelBooking(bookingId, userContext.getUserId()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

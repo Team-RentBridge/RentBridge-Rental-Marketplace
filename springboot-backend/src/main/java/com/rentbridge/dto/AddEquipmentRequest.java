@@ -32,6 +32,9 @@ public class AddEquipmentRequest {
     @JsonProperty("is_for_sale")
     private Boolean isForSale;
 
+    @JsonProperty("instant_booking")
+    private Boolean instantBooking;
+
     @JsonProperty("buy_price")
     private BigDecimal buyPrice;
 
@@ -67,6 +70,9 @@ public class AddEquipmentRequest {
 
     public Boolean getIsForSale() { return isForSale; }
     public void setIsForSale(Boolean isForSale) { this.isForSale = isForSale; }
+
+    public Boolean getInstantBooking() { return instantBooking; }
+    public void setInstantBooking(Boolean instantBooking) { this.instantBooking = instantBooking; }
 
     public BigDecimal getBuyPrice() { return buyPrice; }
     public void setBuyPrice(BigDecimal buyPrice) { this.buyPrice = buyPrice; }
