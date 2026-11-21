@@ -23,7 +23,7 @@ function PrivateRoute({ children }) {
 
 function AdminRoute({ children }) {
   const { user } = useContext(AuthContext);
-  return user && user.role === 'admin' ? children : <Navigate to="/dashboard" />;
+  return user && (user.isAdmin || user.role === 'admin') ? children : <Navigate to="/dashboard" />;
 }
 
 function AnimatedRoutes() {

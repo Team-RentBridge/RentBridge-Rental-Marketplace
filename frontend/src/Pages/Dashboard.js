@@ -106,7 +106,7 @@ function Dashboard() {
     { label: "Total Rentals", value: stats?.totalRentalsTaken || 0, icon: Package, color: "text-blue-400" },
     { label: "Active Orders", value: stats?.activeRentals || 0, icon: Clock, color: "text-purple-400" },
     { label: "Revenue Earned", value: `₹${stats?.totalRevenue || 0}`, icon: CreditCard, color: "text-green-400" },
-    { label: "Trust Score", value: stats?.credibilityScore ? `${(stats.credibilityScore * 10).toFixed(0)}%` : "84%", icon: TrendingUp, color: "text-primary-400" },
+    { label: "Reliability", value: stats?.reliabilityScore != null ? `${stats.reliabilityScore}/100` : "New", icon: TrendingUp, color: "text-primary-400" },
   ];
 
   return (

@@ -148,7 +148,7 @@ public class BookingService {
             throw new RuntimeException("The 24-hour approval window has expired");
         }
         return jdbcTemplate.queryForMap(
-            "UPDATE bookings SET status = 'confirmed', approval_expires_at = NULL " +
+            "UPDATE bookings SET status = 'confirmed', approval_expires_at = NULL, responded_at = NOW() " +
             "WHERE id = ? AND status = 'pending_approval' AND approval_expires_at > NOW() RETURNING *",
             bookingId);
     }
@@ -160,7 +160,7 @@ public class BookingService {
             throw new RuntimeException("This booking is not waiting for approval");
         }
         return jdbcTemplate.queryForMap(
-            "UPDATE bookings SET status = 'declined', approval_expires_at = NULL, " +
+            "UPDATE bookings SET status = 'declined', approval_expires_at = NULL, responded_at = NOW(), " +
             "refund_status = CASE WHEN payment_id IS NULL THEN NULL ELSE 'pending' END " +
             "WHERE id = ? AND status = 'pending_approval' RETURNING *",
             bookingId);

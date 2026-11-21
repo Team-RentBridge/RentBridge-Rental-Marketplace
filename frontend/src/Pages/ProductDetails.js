@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { motion } from "framer-motion";
-import { Calendar, ShieldCheck, Zap, ArrowLeft, ShoppingCart, CreditCard, Star } from "lucide-react";
+import { Calendar, ShieldCheck, ArrowLeft, ShoppingCart, CreditCard, Star, Clock3, FileCheck2, Info } from "lucide-react";
 import API from "../api/api";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/footer";
@@ -16,7 +16,7 @@ function ProductDetails() {
   const { user } = useContext(AuthContext);
 
   const [product, setProduct] = useState(null);
-  const [ownerRating, setOwnerRating] = useState(null);
+  const [trustProfile, setTrustProfile] = useState(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -30,9 +30,9 @@ function ProductDetails() {
         setProduct(res.data);
         // Fetch owner rating
         if (res.data.owner_id) {
-          API.get(`/reviews/owner/${res.data.owner_id}`)
-            .then(ratingRes => setOwnerRating(ratingRes.data))
-            .catch(err => console.error("Failed to load owner rating:", err));
+          API.get(`/user/${res.data.owner_id}/trust-profile`)
+            .then(profileRes => setTrustProfile(profileRes.data))
+            .catch(err => console.error("Failed to load owner trust profile:", err));
         }
         setLoading(false);
       })
@@ -279,7 +279,7 @@ function ProductDetails() {
               </span>
               <span className="px-4 py-2 bg-green-500/20 backdrop-blur-md border border-green-500/30 text-green-400 text-xs font-black uppercase tracking-widest rounded-full flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4" />
-                Verified Owner
+                {trustProfile?.identityVerified ? "Identity Verified" : "Identity Not Verified"}
               </span>
             </div>
           </motion.div>
@@ -304,25 +304,40 @@ function ProductDetails() {
                 </p>
               )}
 
-              {/* Owner Rating */}
-              {ownerRating && (
-                <div className="mt-6 flex items-center gap-4 p-4 glass-dark rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${
-                          i < Math.round(ownerRating.avg_rating)
-                            ? "fill-yellow-400 text-yellow-400"
-                            : "text-white/20"
-                        }`}
-                      />
-                    ))}
+              {/* Transparent owner reliability profile */}
+              {trustProfile && (
+                <div className="mt-6 p-5 glass-dark rounded-2xl border border-white/10 space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-white/40">Reliability profile</p>
+                      <p className="text-lg font-black text-white mt-1">{trustProfile.label}</p>
+                    </div>
+                    <div className="w-16 h-16 rounded-full border-4 border-primary-500/70 flex items-center justify-center">
+                      <span className="text-xl font-black">{trustProfile.score}</span>
+                    </div>
                   </div>
-                  <div className="text-sm text-white/70">
-                    <span className="font-bold text-white">{ownerRating.avg_rating > 0 ? ownerRating.avg_rating.toFixed(1) : 'New'}</span>
-                    <span> · {ownerRating.total_reviews} {ownerRating.total_reviews === 1 ? 'rating' : 'ratings'}</span>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-white/5 p-3">
+                      <div className="flex items-center gap-2 text-sm font-bold"><ShieldCheck className="w-4 h-4 text-emerald-400" />Identity</div>
+                      <p className="text-xs text-white/50 mt-1">{trustProfile.identityVerified ? "Verified by platform" : "Not verified"}</p>
+                    </div>
+                    <div className="rounded-xl bg-white/5 p-3">
+                      <div className="flex items-center gap-2 text-sm font-bold"><FileCheck2 className="w-4 h-4 text-blue-400" />Documents</div>
+                      <p className="text-xs text-white/50 mt-1">{trustProfile.documentVerified ? "Verified by platform" : "Not verified"}</p>
+                    </div>
+                    <div className="rounded-xl bg-white/5 p-3">
+                      <div className="flex items-center gap-2 text-sm font-bold"><Star className="w-4 h-4 text-yellow-400" />Reviews</div>
+                      <p className="text-xs text-white/50 mt-1">{trustProfile.reviewCount} reviews · {trustProfile.averageRating ? trustProfile.averageRating.toFixed(1) : "N/A"} average</p>
+                    </div>
+                    <div className="rounded-xl bg-white/5 p-3">
+                      <div className="flex items-center gap-2 text-sm font-bold"><Clock3 className="w-4 h-4 text-purple-400" />Response time</div>
+                      <p className="text-xs text-white/50 mt-1">{trustProfile.averageResponseHours != null ? `${trustProfile.averageResponseHours.toFixed(1)} hr average` : "Not enough tracked data"}</p>
+                    </div>
                   </div>
+                  <p className="text-xs text-white/40 flex gap-2">
+                    <Info className="w-4 h-4 flex-shrink-0" />
+                    {trustProfile.completedRentals} completed · {trustProfile.cancelledRentals} cancelled/declined/expired. {trustProfile.methodology}
+                  </p>
                 </div>
               )}
             </div>

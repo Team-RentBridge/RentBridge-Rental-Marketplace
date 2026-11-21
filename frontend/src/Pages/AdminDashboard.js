@@ -58,7 +58,7 @@ function AdminDashboard() {
       navigate("/login");
       return;
     }
-    if (user.role !== 'admin') {
+    if (!user.isAdmin && user.role !== 'admin') {
       navigate("/dashboard");
       return;
     }
@@ -82,6 +82,21 @@ function AdminDashboard() {
       setUsers(prev => prev.filter(u => u.id !== id));
     } catch (err) {
       alert("Failed to delete user.");
+    }
+  };
+
+  const handleVerification = async (id, field, checked) => {
+    const target = users.find(u => u.id === id);
+    if (!target) return;
+    try {
+      await API.put(`/admin/users/${id}/verification`, {
+        identity_verified: field === "identity_verified" ? checked : Boolean(target.identity_verified),
+        business_verified: field === "business_verified" ? checked : Boolean(target.business_verified),
+        document_verified: field === "document_verified" ? checked : Boolean(target.document_verified),
+      });
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, [field]: checked } : u));
+    } catch (err) {
+      alert(err.response?.data?.error || "Could not update verification.");
     }
   };
 
@@ -291,6 +306,7 @@ function AdminDashboard() {
                     <th className="px-8 py-4 text-left">Email</th>
                     <th className="px-8 py-4 text-left">Role</th>
                     <th className="px-8 py-4 text-left">Joined</th>
+                    <th className="px-8 py-4 text-left">Verified statuses</th>
                     <th className="px-8 py-4 text-left">Actions</th>
                   </tr>
                 </thead>
@@ -307,6 +323,25 @@ function AdminDashboard() {
                       </td>
                       <td className="px-8 py-4 text-white/40 text-sm">
                         {u.created_at ? new Date(u.created_at).toLocaleDateString() : `#${u.id}`}
+                      </td>
+                      <td className="px-8 py-4">
+                        <div className="flex flex-wrap gap-3 text-xs text-white/70">
+                          {[
+                            ["identity_verified", "Identity"],
+                            ["business_verified", "Business"],
+                            ["document_verified", "Documents"],
+                          ].map(([field, label]) => (
+                            <label key={field} className="flex items-center gap-1.5">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(u[field])}
+                                onChange={(event) => handleVerification(u.id, field, event.target.checked)}
+                                className="accent-primary-500"
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
                       </td>
                       <td className="px-8 py-4">
                         <button

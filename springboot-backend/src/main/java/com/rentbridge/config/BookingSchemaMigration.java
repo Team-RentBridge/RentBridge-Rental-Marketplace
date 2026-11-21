@@ -16,6 +16,13 @@ public class BookingSchemaMigration implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS identity_verified BOOLEAN NOT NULL DEFAULT FALSE");
+        jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS business_verified BOOLEAN NOT NULL DEFAULT FALSE");
+        jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS document_verified BOOLEAN NOT NULL DEFAULT FALSE");
+        jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ");
+        jdbcTemplate.execute("UPDATE users SET created_at = NOW() WHERE created_at IS NULL");
+        jdbcTemplate.execute("ALTER TABLE users ALTER COLUMN created_at SET NOT NULL");
+        jdbcTemplate.execute("ALTER TABLE users ALTER COLUMN created_at SET DEFAULT NOW()");
         jdbcTemplate.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS instant_booking BOOLEAN NOT NULL DEFAULT FALSE");
         jdbcTemplate.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS total_quantity INTEGER");
         jdbcTemplate.execute(
@@ -33,6 +40,11 @@ public class BookingSchemaMigration implements ApplicationRunner {
         jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_order_id VARCHAR(255)");
         jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_status VARCHAR(30)");
         jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS refund_updated_at TIMESTAMPTZ");
+        jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS responded_at TIMESTAMPTZ");
+        jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ");
+        jdbcTemplate.execute("UPDATE bookings SET created_at = NOW() WHERE created_at IS NULL");
+        jdbcTemplate.execute("ALTER TABLE bookings ALTER COLUMN created_at SET NOT NULL");
+        jdbcTemplate.execute("ALTER TABLE bookings ALTER COLUMN created_at SET DEFAULT NOW()");
         jdbcTemplate.execute(
             "UPDATE bookings SET pickup_at = start_date + TIME '09:00', " +
             "return_by = end_date + TIME '17:00', " +

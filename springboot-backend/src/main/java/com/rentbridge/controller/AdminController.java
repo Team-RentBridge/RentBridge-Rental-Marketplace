@@ -61,6 +61,25 @@ public class AdminController {
         }
     }
 
+    @PutMapping("/users/{id}/verification")
+    public ResponseEntity<?> updateVerification(@PathVariable Long id,
+                                                @RequestBody Map<String, Boolean> verification,
+                                                HttpServletRequest httpRequest) {
+        if (!isAdmin(httpRequest)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Admin access required"));
+        }
+        try {
+            adminService.updateVerification(
+                id,
+                Boolean.TRUE.equals(verification.get("identity_verified")),
+                Boolean.TRUE.equals(verification.get("business_verified")),
+                Boolean.TRUE.equals(verification.get("document_verified")));
+            return ResponseEntity.ok(Map.of("message", "Verification status updated"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @DeleteMapping("/users/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id,
                                          HttpServletRequest httpRequest) {

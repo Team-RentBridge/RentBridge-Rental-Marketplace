@@ -44,7 +44,18 @@ public class AdminService {
 
     public List<Map<String, Object>> getAllUsers() {
         return jdbcTemplate.queryForList(
-            "SELECT id, name, email, role FROM users ORDER BY id DESC");
+            "SELECT id, name, email, role, created_at, identity_verified, business_verified, document_verified " +
+            "FROM users ORDER BY id DESC");
+    }
+
+    public void updateVerification(Long userId, boolean identityVerified,
+                                   boolean businessVerified, boolean documentVerified) {
+        int rows = jdbcTemplate.update(
+            "UPDATE users SET identity_verified = ?, business_verified = ?, document_verified = ? WHERE id = ?",
+            identityVerified, businessVerified, documentVerified, userId);
+        if (rows == 0) {
+            throw new RuntimeException("User not found");
+        }
     }
 
     public List<Map<String, Object>> getAllBookings() {

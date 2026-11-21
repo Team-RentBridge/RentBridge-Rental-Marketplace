@@ -16,6 +16,15 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @GetMapping("/{id}/trust-profile")
+    public ResponseEntity<?> getTrustProfile(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(userService.getTrustProfile(id));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/stats")
     public ResponseEntity<?> getUserStats(HttpServletRequest httpRequest) {
         UserContext userContext = (UserContext) httpRequest.getAttribute("userContext");
