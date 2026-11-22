@@ -15,6 +15,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class BookingService {
@@ -36,6 +40,11 @@ public class BookingService {
         if (quantity < 1) {
             throw new RuntimeException("Quantity must be at least one");
         }
+        String fulfillmentMethod = request.getFulfillmentMethod() == null
+            ? "pickup" : request.getFulfillmentMethod().trim().toLowerCase(Locale.ROOT);
+        if (!"pickup".equals(fulfillmentMethod) && !"delivery".equals(fulfillmentMethod)) {
+            throw new RuntimeException("Choose pickup or delivery");
+        }
 
         Map<String, Object> equipment = lockEquipment(request.getEquipmentId());
         if (Boolean.TRUE.equals(equipment.get("is_for_sale"))) {
@@ -44,6 +53,47 @@ public class BookingService {
         if (equipment.get("owner_id") != null
                 && userId.equals(((Number) equipment.get("owner_id")).longValue())) {
             throw new RuntimeException("You cannot book your own listing");
+        }
+
+        String pickupWindows = equipment.get("pickup_windows") == null
+            ? "9:00 AM - 12:00 PM\n1:00 PM - 5:00 PM"
+            : equipment.get("pickup_windows").toString();
+        List<String> configuredWindows = Arrays.stream(pickupWindows.split("\\R"))
+            .map(String::trim).filter(value -> !value.isEmpty())
+            .collect(Collectors.toList());
+        String pickupWindow = request.getPickupWindow() == null
+            ? configuredWindows.stream().findFirst().orElse(null)
+            : request.getPickupWindow().trim();
+        if (pickupWindow == null || !configuredWindows.contains(pickupWindow)) {
+            throw new RuntimeException("Choose a pickup window offered by the owner");
+        }
+
+        String deliveryArea = null;
+        String deliveryAddress = null;
+        BigDecimal deliveryFee = BigDecimal.ZERO;
+        if ("delivery".equals(fulfillmentMethod)) {
+            if (!Boolean.TRUE.equals(equipment.get("delivery_available"))) {
+                throw new RuntimeException("Delivery is not available for this listing");
+            }
+            String requestedArea = request.getDeliveryArea() == null
+                ? "" : request.getDeliveryArea().trim();
+            String configuredAreas = equipment.get("delivery_areas") == null
+                ? "" : equipment.get("delivery_areas").toString();
+            boolean areaIsServed = Arrays.stream(configuredAreas.split(","))
+                .map(String::trim).anyMatch(area -> area.equalsIgnoreCase(requestedArea));
+            if (requestedArea.isEmpty() || !areaIsServed) {
+                throw new RuntimeException("Choose a delivery area served by the owner");
+            }
+            deliveryAddress = request.getDeliveryAddress() == null
+                ? "" : request.getDeliveryAddress().trim();
+            if (deliveryAddress.isEmpty() || deliveryAddress.length() > 500) {
+                throw new RuntimeException("Enter a delivery address up to 500 characters");
+            }
+            deliveryArea = requestedArea;
+            deliveryFee = decimalValue(equipment.get("delivery_fee"), "Delivery fee");
+            if (deliveryFee.signum() < 0) {
+                throw new RuntimeException("Delivery fee cannot be negative");
+            }
         }
 
         validateListingDates(equipment, startDate, endDate);
@@ -64,18 +114,21 @@ public class BookingService {
         BigDecimal pricePerDay = decimalValue(equipment.get("price_per_day"), "Daily rental price");
         BigDecimal totalPrice = pricePerDay
             .multiply(BigDecimal.valueOf(ChronoUnit.DAYS.between(startDate, endDate)))
-            .multiply(BigDecimal.valueOf(quantity));
+            .multiply(BigDecimal.valueOf(quantity))
+            .add(deliveryFee);
 
         return jdbcTemplate.queryForMap(
             "INSERT INTO bookings (" +
             "equipment_id, user_id, start_date, end_date, total_price, quantity, status, " +
-            "hold_expires_at, pickup_at, return_by, cancellation_deadline" +
+            "hold_expires_at, pickup_at, return_by, cancellation_deadline, fulfillment_method, " +
+            "delivery_area, delivery_address, pickup_window, delivery_fee, delivery_status" +
             ") VALUES (?, ?, ?::date, ?::date, ?, ?, 'payment_pending', " +
             "NOW() + INTERVAL '15 minutes', ?::date + TIME '09:00', " +
-            "?::date + TIME '17:00', ?::date - INTERVAL '1 day' + TIME '09:00') " +
+            "?::date + TIME '17:00', ?::date - INTERVAL '1 day' + TIME '09:00', ?, ?, ?, ?, ?, 'scheduled') " +
             "RETURNING *",
             request.getEquipmentId(), userId, startDate.toString(), endDate.toString(),
-            totalPrice, quantity, startDate.toString(), endDate.toString(), startDate.toString());
+            totalPrice, quantity, startDate.toString(), endDate.toString(), startDate.toString(),
+            fulfillmentMethod, deliveryArea, deliveryAddress, pickupWindow, deliveryFee);
     }
 
     @Transactional
@@ -197,6 +250,27 @@ public class BookingService {
             "refund_status = CASE WHEN payment_id IS NULL THEN NULL ELSE 'pending' END " +
             "WHERE id = ? RETURNING *",
             bookingId);
+    }
+
+    @Transactional
+    public Map<String, Object> updateFulfillmentStatus(
+            Long bookingId, Long ownerId, String requestedStatus) {
+        Map<String, Object> booking = getBookingForOwnerUpdate(bookingId, ownerId);
+        String status = requestedStatus == null ? "" : requestedStatus.trim().toLowerCase(Locale.ROOT);
+        String method = booking.get("fulfillment_method") == null
+            ? "pickup" : booking.get("fulfillment_method").toString();
+        Set<String> allowedStatuses = "delivery".equals(method)
+            ? Set.of("scheduled", "in_transit", "delivered")
+            : Set.of("scheduled", "ready_for_pickup", "picked_up");
+        if (!allowedStatuses.contains(status)) {
+            throw new RuntimeException("Choose a valid status for this fulfillment method");
+        }
+        if (!"confirmed".equals(booking.get("status")) && !"active".equals(booking.get("status"))) {
+            throw new RuntimeException("Fulfillment can be updated only for confirmed rentals");
+        }
+        return jdbcTemplate.queryForMap(
+            "UPDATE bookings SET delivery_status = ? WHERE id = ? RETURNING *",
+            status, bookingId);
     }
 
     @Transactional

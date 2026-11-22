@@ -2,6 +2,7 @@ package com.rentbridge.controller;
 
 import com.rentbridge.dto.CreateBookingRequest;
 import com.rentbridge.dto.ReturnBookingRequest;
+import com.rentbridge.dto.UpdateFulfillmentStatusRequest;
 import com.rentbridge.model.UserContext;
 import com.rentbridge.service.BookingService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -118,6 +119,21 @@ public class BookingController {
         try {
             return ResponseEntity.ok(
                 bookingService.cancelBooking(bookingId, userContext.getUserId()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{bookingId}/fulfillment-status")
+    public ResponseEntity<?> updateFulfillmentStatus(@PathVariable Long bookingId,
+            @RequestBody UpdateFulfillmentStatusRequest request, HttpServletRequest httpRequest) {
+        UserContext userContext = (UserContext) httpRequest.getAttribute("userContext");
+        if (userContext == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+        try {
+            return ResponseEntity.ok(bookingService.updateFulfillmentStatus(
+                bookingId, userContext.getUserId(), request.getDeliveryStatus()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

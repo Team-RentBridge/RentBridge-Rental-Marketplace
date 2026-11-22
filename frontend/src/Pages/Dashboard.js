@@ -15,6 +15,20 @@ import API from "../api/api";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/footer";
 import AddEquipmentForm from "../components/dashboard/AddEquipmentForm";
+import DeliveryMapCard from "../components/dashboard/DeliveryMapCard";
+
+const fulfillmentStatusOptions = {
+  delivery: [
+    ["scheduled", "Scheduled"],
+    ["in_transit", "In transit"],
+    ["delivered", "Delivered"],
+  ],
+  pickup: [
+    ["scheduled", "Scheduled"],
+    ["ready_for_pickup", "Ready for pickup"],
+    ["picked_up", "Picked up"],
+  ],
+};
 
 function Dashboard() {
   const { user } = useContext(AuthContext);
@@ -96,6 +110,21 @@ function Dashboard() {
     }
   };
 
+  const handleFulfillmentStatus = async (bookingId, deliveryStatus) => {
+    try {
+      await API.put(`/bookings/${bookingId}/fulfillment-status`, {
+        delivery_status: deliveryStatus,
+      });
+      setTransactions((previous) => previous.map((transaction) =>
+        transaction.id === bookingId
+          ? { ...transaction, delivery_status: deliveryStatus }
+          : transaction
+      ));
+    } catch (error) {
+      alert(error.response?.data?.error || "Could not update the delivery or pickup status.");
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
@@ -108,6 +137,11 @@ function Dashboard() {
     { label: "Revenue Earned", value: `₹${stats?.totalRevenue || 0}`, icon: CreditCard, color: "text-green-400" },
     { label: "Reliability", value: stats?.reliabilityScore != null ? `${stats.reliabilityScore}/100` : "New", icon: TrendingUp, color: "text-primary-400" },
   ];
+  const deliveryBookings = transactions.filter((transaction) =>
+    transaction.fulfillment_method === "delivery"
+    && transaction.delivery_address
+    && ["confirmed", "active"].includes(transaction.status)
+  );
 
   return (
     <div className="min-h-screen text-white">
@@ -173,6 +207,36 @@ function Dashboard() {
           ))}
         </div>
 
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mb-16"
+        >
+          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight">Delivery locations & status</h2>
+              <p className="mt-1 text-sm text-white/40">
+                Confirmed delivery bookings on a map. Status updates are manual; live tracking is not enabled.
+              </p>
+            </div>
+            <span className="text-xs font-bold uppercase tracking-widest text-white/30">
+              {deliveryBookings.length} active {deliveryBookings.length === 1 ? "delivery" : "deliveries"}
+            </span>
+          </div>
+          {deliveryBookings.length > 0 ? (
+            <div className="grid gap-6 lg:grid-cols-2">
+              {deliveryBookings.map((booking) => (
+                <DeliveryMapCard key={`${booking.id}-${booking.is_owner}`} booking={booking} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.02] px-6 py-10 text-center text-sm text-white/40">
+              Active delivery destinations will appear here after a delivery booking is confirmed.
+            </div>
+          )}
+        </motion.section>
+
         {/* Recent Transactions */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -223,6 +287,38 @@ function Dashboard() {
                           </div>
                         )}
                       </span>
+                      {!t.is_for_sale && t.fulfillment_method && (
+                        <div className="mt-3 space-y-1 text-xs text-white/40">
+                          <div>
+                            {t.fulfillment_method === "delivery"
+                              ? `Delivery · ${t.delivery_area || "Area not specified"}`
+                              : "Pickup"}
+                            {t.pickup_window ? ` · ${t.pickup_window}` : ""}
+                          </div>
+                          {t.fulfillment_method === "delivery" && t.delivery_address && (
+                            <div>Address: {t.delivery_address}</div>
+                          )}
+                          {Number(t.delivery_fee) > 0 && (
+                            <div>Estimated delivery fee: ₹{Number(t.delivery_fee).toFixed(2)}</div>
+                          )}
+                          <div>
+                            Fulfillment: {(t.delivery_status || "scheduled").replaceAll("_", " ")}
+                          </div>
+                          {t.is_owner && ["confirmed", "active"].includes(t.status) && (
+                            <select
+                              aria-label={`Update fulfillment status for ${t.title}`}
+                              value={t.delivery_status || "scheduled"}
+                              onChange={(event) => handleFulfillmentStatus(t.id, event.target.value)}
+                              className="mt-2 rounded-lg border border-white/10 bg-gray-900 px-3 py-2 text-xs font-bold text-white"
+                            >
+                              {(fulfillmentStatusOptions[t.fulfillment_method] || fulfillmentStatusOptions.pickup)
+                                .map(([value, label]) => (
+                                  <option key={value} value={value}>{label}</option>
+                                ))}
+                            </select>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-10 py-8 text-right">
                       {t.is_for_sale ? (

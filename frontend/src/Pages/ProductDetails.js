@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { motion } from "framer-motion";
-import { Calendar, ShieldCheck, ArrowLeft, ShoppingCart, CreditCard, Star, Clock3, FileCheck2, Info } from "lucide-react";
+import { Calendar, ShieldCheck, ArrowLeft, ShoppingCart, CreditCard, Star, Clock3, FileCheck2, Info, Truck } from "lucide-react";
 import API from "../api/api";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/footer";
@@ -20,14 +20,33 @@ function ProductDetails() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [fulfillmentMethod, setFulfillmentMethod] = useState("pickup");
+  const [deliveryArea, setDeliveryArea] = useState("");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [pickupWindow, setPickupWindow] = useState("");
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
   const isOwner = Boolean(user && product && Number(user.id || user.userId) === Number(product.owner_id));
+  const pickupWindows = (product?.pickup_windows || "9:00 AM - 12:00 PM\n1:00 PM - 5:00 PM")
+    .split(/\r?\n/).map((window) => window.trim()).filter(Boolean);
+  const deliveryAreas = (product?.delivery_areas || "")
+    .split(",").map((area) => area.trim()).filter(Boolean);
+  const rentalDays = startDate && endDate
+    ? Math.max(0, Math.round(
+      (new Date(`${endDate}T00:00:00Z`) - new Date(`${startDate}T00:00:00Z`)) / (24 * 60 * 60 * 1000)
+    ))
+    : 0;
+  const deliveryFee = fulfillmentMethod === "delivery" ? Number(product?.delivery_fee || 0) : 0;
+  const estimatedTotal = rentalDays * Number(product?.price_per_day || 0) * quantity + deliveryFee;
 
   useEffect(() => {
     API.get(`/equipment/${id}`)
       .then((res) => {
         setProduct(res.data);
+        setFulfillmentMethod("pickup");
+        setDeliveryArea("");
+        setDeliveryAddress("");
+        setPickupWindow("");
         // Fetch owner rating
         if (res.data.owner_id) {
           API.get(`/user/${res.data.owner_id}/trust-profile`)
@@ -130,6 +149,10 @@ function ProductDetails() {
         start_date: startDate,
         end_date: endDate,
         quantity,
+        fulfillment_method: fulfillmentMethod,
+        delivery_area: fulfillmentMethod === "delivery" ? deliveryArea : null,
+        delivery_address: fulfillmentMethod === "delivery" ? deliveryAddress : null,
+        pickup_window: pickupWindow || pickupWindows[0],
       });
       holdId = hold.id;
 
@@ -169,7 +192,7 @@ function ProductDetails() {
               : data.booking.status === "expired"
                 ? "The hold expired before payment completed. An automatic refund has been started."
                 : "Payment received. The owner has 24 hours to approve your request.";
-            alert(`${status} Pick up ${startDate} at 9:00 AM; return ${endDate} by 5:00 PM.`);
+            alert(`${status} ${fulfillmentMethod === "delivery" ? `Delivery to ${deliveryArea}` : "Pickup"} is scheduled for ${startDate} (${pickupWindow || pickupWindows[0]}). Return by ${endDate} at 5:00 PM.`);
             navigate("/dashboard");
           } catch (error) {
             console.error("Booking payment verification failed:", error);
@@ -391,6 +414,104 @@ function ProductDetails() {
                   }}
                   isOwner={isOwner}
                 />
+              )}
+
+              {!product.is_for_sale && !isOwner && (
+                <div className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                  <div>
+                    <p className="mb-3 text-xs font-black uppercase tracking-widest text-white/40">
+                      Delivery or pickup
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setFulfillmentMethod("pickup")}
+                        className={`rounded-xl border px-5 py-3 text-sm font-bold transition-colors ${
+                          fulfillmentMethod === "pickup"
+                            ? "border-primary-400 bg-primary-500/20 text-white"
+                            : "border-white/10 bg-white/5 text-white/50 hover:text-white"
+                        }`}
+                      >
+                        Pickup
+                      </button>
+                      {product.delivery_available && deliveryAreas.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setFulfillmentMethod("delivery")}
+                          className={`flex items-center gap-2 rounded-xl border px-5 py-3 text-sm font-bold transition-colors ${
+                            fulfillmentMethod === "delivery"
+                              ? "border-primary-400 bg-primary-500/20 text-white"
+                              : "border-white/10 bg-white/5 text-white/50 hover:text-white"
+                          }`}
+                        >
+                          <Truck className="h-4 w-4" />
+                          Delivery · ₹{Number(product.delivery_fee || 0).toFixed(2)}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {fulfillmentMethod === "delivery" && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/40">
+                          Delivery area
+                        </label>
+                        <select
+                          value={deliveryArea}
+                          onChange={(event) => setDeliveryArea(event.target.value)}
+                          className="w-full rounded-xl border border-white/10 bg-gray-900 px-4 py-3 text-white"
+                        >
+                          <option value="">Choose a service area</option>
+                          {deliveryAreas.map((area) => (
+                            <option key={area} value={area}>{area}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/40">
+                          Delivery address
+                        </label>
+                        <textarea
+                          value={deliveryAddress}
+                          onChange={(event) => setDeliveryAddress(event.target.value)}
+                          maxLength={500}
+                          required={fulfillmentMethod === "delivery"}
+                          placeholder="Street address and any delivery instructions"
+                          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/30"
+                        />
+                      </div>
+                      <p className="text-xs text-white/40">
+                        Delivery fee is an estimate set by the owner and is included in your reservation total.
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/40">
+                      {fulfillmentMethod === "delivery" ? "Preferred handoff window" : "Pickup window"}
+                    </label>
+                    <select
+                      value={pickupWindow || pickupWindows[0] || ""}
+                      onChange={(event) => setPickupWindow(event.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-gray-900 px-4 py-3 text-white"
+                    >
+                      {pickupWindows.map((window) => (
+                        <option key={window} value={window}>{window}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {rentalDays > 0 && (
+                    <div className="flex justify-between border-t border-white/10 pt-4 text-sm">
+                      <span className="text-white/50">
+                        Estimated rental ({rentalDays} {rentalDays === 1 ? "day" : "days"})
+                        {fulfillmentMethod === "delivery" && " + delivery"}
+                      </span>
+                      <span className="font-black text-white">₹{estimatedTotal.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
               )}
               
               <div className="space-y-2 mt-4">

@@ -25,6 +25,13 @@ public class BookingSchemaMigration implements ApplicationRunner {
         jdbcTemplate.execute("ALTER TABLE users ALTER COLUMN created_at SET DEFAULT NOW()");
         jdbcTemplate.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS instant_booking BOOLEAN NOT NULL DEFAULT FALSE");
         jdbcTemplate.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS total_quantity INTEGER");
+        jdbcTemplate.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS delivery_available BOOLEAN NOT NULL DEFAULT FALSE");
+        jdbcTemplate.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS delivery_areas TEXT");
+        jdbcTemplate.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS delivery_fee NUMERIC(12, 2) NOT NULL DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS pickup_windows TEXT");
+        jdbcTemplate.execute(
+            "UPDATE equipment SET pickup_windows = '9:00 AM - 12:00 PM' || CHR(10) || '1:00 PM - 5:00 PM' " +
+            "WHERE pickup_windows IS NULL OR BTRIM(pickup_windows) = ''");
         jdbcTemplate.execute(
             "UPDATE equipment e SET total_quantity = GREATEST(COALESCE(e.quantity, 1), 1) + " +
             "COALESCE((SELECT SUM(b.quantity) FROM bookings b " +
@@ -34,6 +41,12 @@ public class BookingSchemaMigration implements ApplicationRunner {
         jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS hold_expires_at TIMESTAMPTZ");
         jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS approval_expires_at TIMESTAMPTZ");
         jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS pickup_at TIMESTAMPTZ");
+        jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS fulfillment_method VARCHAR(20) NOT NULL DEFAULT 'pickup'");
+        jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_area TEXT");
+        jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_address TEXT");
+        jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS pickup_window TEXT");
+        jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_fee NUMERIC(12, 2) NOT NULL DEFAULT 0");
+        jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_status VARCHAR(30) NOT NULL DEFAULT 'scheduled'");
         jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS return_by TIMESTAMPTZ");
         jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS cancellation_deadline TIMESTAMPTZ");
         jdbcTemplate.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_id VARCHAR(255)");

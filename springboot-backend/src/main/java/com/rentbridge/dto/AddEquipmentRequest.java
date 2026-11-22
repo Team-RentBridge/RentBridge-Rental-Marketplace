@@ -38,6 +38,18 @@ public class AddEquipmentRequest {
     @JsonProperty("buy_price")
     private BigDecimal buyPrice;
 
+    @JsonProperty("delivery_available")
+    private Boolean deliveryAvailable;
+
+    @JsonProperty("delivery_areas")
+    private String deliveryAreas;
+
+    @JsonProperty("delivery_fee")
+    private BigDecimal deliveryFee;
+
+    @JsonProperty("pickup_windows")
+    private String pickupWindows;
+
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
@@ -76,4 +88,16 @@ public class AddEquipmentRequest {
 
     public BigDecimal getBuyPrice() { return buyPrice; }
     public void setBuyPrice(BigDecimal buyPrice) { this.buyPrice = buyPrice; }
+
+    public Boolean getDeliveryAvailable() { return deliveryAvailable; }
+    public void setDeliveryAvailable(Boolean deliveryAvailable) { this.deliveryAvailable = deliveryAvailable; }
+
+    public String getDeliveryAreas() { return deliveryAreas; }
+    public void setDeliveryAreas(String deliveryAreas) { this.deliveryAreas = deliveryAreas; }
+
+    public BigDecimal getDeliveryFee() { return deliveryFee; }
+    public void setDeliveryFee(BigDecimal deliveryFee) { this.deliveryFee = deliveryFee; }
+
+    public String getPickupWindows() { return pickupWindows; }
+    public void setPickupWindows(String pickupWindows) { this.pickupWindows = pickupWindows; }
 }

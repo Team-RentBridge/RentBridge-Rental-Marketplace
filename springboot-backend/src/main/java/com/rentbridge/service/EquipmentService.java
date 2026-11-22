@@ -180,11 +180,26 @@ public class EquipmentService {
     }
 
     public Map<String, Object> addEquipment(AddEquipmentRequest request, Long ownerId) {
+        boolean isForSale = request.getIsForSale() != null && request.getIsForSale();
+        boolean deliveryAvailable = !isForSale
+            && request.getDeliveryAvailable() != null && request.getDeliveryAvailable();
+        if (deliveryAvailable && (request.getDeliveryAreas() == null
+                || request.getDeliveryAreas().isBlank())) {
+            throw new RuntimeException("Add at least one delivery service area");
+        }
+        if (request.getDeliveryFee() != null && request.getDeliveryFee().signum() < 0) {
+            throw new RuntimeException("Delivery fee cannot be negative");
+        }
+        if (!isForSale && request.getPickupWindows() != null
+                && request.getPickupWindows().isBlank()) {
+            throw new RuntimeException("Add at least one pickup window");
+        }
         return jdbcTemplate.queryForMap(
             "INSERT INTO equipment (title, description, price_per_day, penalty_per_day, category, " +
             "available_from, available_to, image_url, quantity, total_quantity, instant_booking, " +
-            "is_featured, is_for_sale, buy_price, owner_id) " +
-            "VALUES (?, ?, ?, ?, ?, ?::date, ?::date, ?, ?, ?, ?, ?, ?, ?, ?) " +
+            "is_featured, is_for_sale, buy_price, owner_id, delivery_available, delivery_areas, " +
+            "delivery_fee, pickup_windows) " +
+            "VALUES (?, ?, ?, ?, ?, ?::date, ?::date, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
             "RETURNING *",
             request.getTitle(),
             request.getDescription(),
@@ -200,7 +215,12 @@ public class EquipmentService {
             request.getIsFeatured() != null ? request.getIsFeatured() : false,
             request.getIsForSale() != null ? request.getIsForSale() : false,
             request.getBuyPrice(),
-            ownerId
+            ownerId,
+            deliveryAvailable,
+            request.getDeliveryAreas(),
+            request.getDeliveryFee() != null ? request.getDeliveryFee() : java.math.BigDecimal.ZERO,
+            request.getPickupWindows() != null && !request.getPickupWindows().isBlank()
+                ? request.getPickupWindows() : "9:00 AM - 12:00 PM\n1:00 PM - 5:00 PM"
         );
     }
 

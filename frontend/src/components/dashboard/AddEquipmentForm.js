@@ -22,6 +22,10 @@ const AddEquipmentForm = ({ onSuccess }) => {
         available_to: '',
         listing_type: 'rent',
         instant_booking: false,
+        delivery_available: false,
+        delivery_areas: '',
+        delivery_fee: '0',
+        pickup_windows: '9:00 AM - 12:00 PM\n1:00 PM - 5:00 PM',
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,6 +58,14 @@ const AddEquipmentForm = ({ onSuccess }) => {
                 penalty_per_day: isForSale ? 0 : (parseFloat(formData.penalty_per_day) || 0),
                 buy_price: isForSale ? parseFloat(formData.buy_price) : null,
                 quantity: parseInt(formData.quantity) || 1,
+                delivery_available: !isForSale && formData.delivery_available,
+                delivery_areas: !isForSale && formData.delivery_available
+                    ? formData.delivery_areas.trim()
+                    : '',
+                delivery_fee: !isForSale && formData.delivery_available
+                    ? parseFloat(formData.delivery_fee) || 0
+                    : 0,
+                pickup_windows: !isForSale ? formData.pickup_windows.trim() : '',
             });
             setSuccess('Equipment listed successfully! 🚀');
             if (onSuccess) {
@@ -279,26 +291,99 @@ const AddEquipmentForm = ({ onSuccess }) => {
                     </div>
 
                     {formData.listing_type === 'rent' && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className={labelClasses}>Available From</label>
-                                <input
-                                    name="available_from"
-                                    type="date"
-                                    value={formData.available_from}
-                                    onChange={handleChange}
-                                    className={inputClasses}
-                                />
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className={labelClasses}>Available From</label>
+                                    <input
+                                        name="available_from"
+                                        type="date"
+                                        value={formData.available_from}
+                                        onChange={handleChange}
+                                        className={inputClasses}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClasses}>Available To</label>
+                                    <input
+                                        name="available_to"
+                                        type="date"
+                                        value={formData.available_to}
+                                        onChange={handleChange}
+                                        className={inputClasses}
+                                    />
+                                </div>
                             </div>
+
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-5">
+                                <label className="flex items-start gap-4 cursor-pointer">
+                                    <input
+                                        name="delivery_available"
+                                        type="checkbox"
+                                        checked={formData.delivery_available}
+                                        onChange={(e) => setFormData({
+                                            ...formData,
+                                            delivery_available: e.target.checked,
+                                        })}
+                                        className="mt-1 h-5 w-5 accent-primary-500"
+                                    />
+                                    <span>
+                                        <span className="block font-bold text-white">Offer delivery</span>
+                                        <span className="mt-1 block text-sm text-white/40">
+                                            Renters can choose delivery to one of the service areas you list.
+                                        </span>
+                                    </span>
+                                </label>
+
+                                {formData.delivery_available && (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className={labelClasses}>Service Areas</label>
+                                            <input
+                                                name="delivery_areas"
+                                                value={formData.delivery_areas}
+                                                onChange={handleChange}
+                                                placeholder="e.g. Downtown, Northside, Riverside"
+                                                required={formData.delivery_available}
+                                                className={inputClasses}
+                                            />
+                                            <p className="mt-2 text-xs text-white/30">
+                                                Separate areas with commas. Renters choose one when booking.
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label className={labelClasses}>Estimated Delivery Fee (₹)</label>
+                                            <input
+                                                name="delivery_fee"
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={formData.delivery_fee}
+                                                onChange={handleChange}
+                                                required={formData.delivery_available}
+                                                className={inputClasses}
+                                            />
+                                            <p className="mt-2 text-xs text-white/30">
+                                                Flat estimate per booking; included in the renter's payment total.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             <div>
-                                <label className={labelClasses}>Available To</label>
-                                <input
-                                    name="available_to"
-                                    type="date"
-                                    value={formData.available_to}
+                                <label className={labelClasses}>Pickup Windows</label>
+                                <textarea
+                                    name="pickup_windows"
+                                    value={formData.pickup_windows}
                                     onChange={handleChange}
-                                    className={inputClasses}
+                                    required
+                                    placeholder={'9:00 AM - 12:00 PM\n1:00 PM - 5:00 PM'}
+                                    className={inputClasses + " min-h-24 resize-y"}
                                 />
+                                <p className="mt-2 text-xs text-white/30">
+                                    Add one pickup window per line. Renters select a window for their booking date.
+                                </p>
                             </div>
                         </div>
                     )}
